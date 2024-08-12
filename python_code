@@ -1,0 +1,142 @@
+import pandas as pd
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+import sqlite3
+from datetime import datetime
+
+class FinanceManager:
+    def __init__(self):
+        self.conn = sqlite3.connect('finance_data.db')
+        self.create_tables()
+
+        self.root = tk.Tk()
+        self.root.title("Personal Finance Manager")
+
+        self.expense_description_var = tk.StringVar()
+        self.expense_amount_var = tk.DoubleVar()
+        self.budget_category_var = tk.StringVar()
+        self.budget_amount_var = tk.DoubleVar()
+        self.balance_var = tk.StringVar()
+
+        self.create_gui()
+    def create_tables(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id INTEGER PRIMARY KEY,
+                    description TEXT,
+                    amount REAL,
+                    date TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS budgets (
+                    id INTEGER PRIMARY KEY,
+                    category TEXT,
+                    amount REAL
+                )
+            ''')
+
+    def add_expense(self):
+        description = self.expense_description_var.get()
+        amount = self.expense_amount_var.get()
+        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("INSERT INTO expenses (description, amount, date) VALUES (?, ?, ?)", (description, amount, date))
+
+        self.update_balance()
+        self.clear_expense_entry()
+        messagebox.showinfo("Expense Added", "Expense added successfully!")
+
+    def update_balance(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM expenses")
+            total_expenses = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM budgets")
+            total_budgets = cursor.fetchone()[0]
+
+        balance = total_budgets - total_expenses
+        self.balance_var.set(f"Balance: ${balance:.2f}")
+
+    def clear_expense_entry(self):
+        self.expense_description_var.set('')
+        self.expense_amount_var.set(0.0)
+
+    def add_budget(self):
+        category = self.budget_category_var.get()
+        amount = self.budget_amount_var.get()
+
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("INSERT INTO budgets (category, amount) VALUES (?, ?)", (category, amount))
+
+        self.update_balance()
+        self.clear_budget_entry()
+        messagebox.showinfo("Budget Set", "Budget set successfully!")
+
+    def clear_budget_entry(self):
+        self.budget_category_var.set('')
+        self.budget_amount_var.set(0.0)
+
+    def create_gui(self):
+        notebook = ttk.Notebook(self.root)
+
+        # Expense Tab
+        expense_frame = ttk.Frame(notebook)
+        notebook.add(expense_frame, text="Add Expense")
+
+        expense_label = ttk.Label(expense_frame, text="Expense Description:")
+        expense_label.grid(row=0, column=0, padx=10, pady=10, sticky='w')
+
+        expense_entry = ttk.Entry(expense_frame, textvariable=self.expense_description_var)
+        expense_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        amount_label = ttk.Label(expense_frame, text="Expense Amount:")
+        amount_label.grid(row=1, column=0, padx=10, pady=10, sticky='w')
+
+        amount_entry = ttk.Entry(expense_frame, textvariable=self.expense_amount_var)
+        amount_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        add_expense_button = ttk.Button(expense_frame, text="Add Expense", command=self.add_expense)
+        add_expense_button.grid(row=2, column=0, columnspan=2, pady=10)
+
+        # Budget Tab
+        budget_frame = ttk.Frame(notebook)
+        notebook.add(budget_frame, text="Set Budget")
+
+        category_label = ttk.Label(budget_frame, text="Budget Category:")
+        category_label.grid(row=0, column=0, padx=10, pady=10, sticky='w')
+
+        category_entry = ttk.Entry(budget_frame, textvariable=self.budget_category_var)
+        category_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        budget_amount_label = ttk.Label(budget_frame, text="Budget Amount:")
+        budget_amount_label.grid(row=1, column=0, padx=10, pady=10, sticky='w')
+
+        budget_amount_entry = ttk.Entry(budget_frame, textvariable=self.budget_amount_var)
+        budget_amount_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        add_budget_button = ttk.Button(budget_frame, text="Set Budget", command=self.add_budget)
+        add_budget_button.grid(row=2, column=0, columnspan=2, pady=10)
+
+        # Balance Tab
+        balance_frame = ttk.Frame(notebook)
+        notebook.add(balance_frame, text="Balance")
+
+        self.balance_var = tk.StringVar()
+        balance_label = ttk.Label(balance_frame, textvariable=self.balance_var)
+        balance_label.grid(row=0, column=0, padx=10, pady=10)
+
+        notebook.pack(expand=True, fill="both")
+
+        # Run the GUI
+        self.root.mainloop()
+
+if __name__ == "__main__":
+    finance_manager = FinanceManager()
