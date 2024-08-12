@@ -1,0 +1,1 @@
+A personal finance manager is a tool or software application designed to help individuals to manage their personal finances effectively. The main aim of the project is to create personal finance manager which can be used by multiple users. This is achieved by using Python, PyQt5, Mysql and Matplotlib
